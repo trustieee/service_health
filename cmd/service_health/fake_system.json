@@ -1,0 +1,19 @@
+{
+  "services": [
+    {
+      "name": "1",
+      "url": "",
+      "status": ""
+    },
+    {
+      "name": "2",
+      "url": "http://localhost:8081",
+      "status": ""
+    },
+    {
+      "name": "3",
+      "url": "",
+      "status": ""
+    }
+  ]
+}
