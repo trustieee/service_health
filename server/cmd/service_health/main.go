@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"sync"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -15,46 +16,60 @@ type SystemConfig struct {
 }
 
 type Service struct {
+	LastUpdated time.Time
+	Name        string `json:"name"`
+	URL         string `json:"url"`
+	Status      string `json:"status"`
+}
+
+type ResponseService struct {
 	Name   string `json:"name"`
 	URL    string `json:"url"`
 	Status string `json:"status"`
 }
 
+func (s *Service) ToResponseService() ResponseService {
+	return ResponseService{s.Name, s.URL, s.Status}
+}
+
 func main() {
-	log.Println("starting service_health")
-	log.Println("reading system config...")
 	services := readSystemConfig()
 
 	r := gin.Default()
-	r.GET("/ping", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{
-			"message": "pong",
-		})
-	})
-
 	r.GET("/health", func(c *gin.Context) {
+		var wg sync.WaitGroup
 		for i := range services {
-			updateServiceHealth(&services[i])
+			wg.Add(1)
+			go updateServiceHealth(&services[i], &wg)
 		}
 
+		wg.Wait()
+
+		responseServices := make([]ResponseService, 0, len(services))
+		for _, service := range services {
+			responseServices = append(responseServices, service.ToResponseService())
+		}
 		c.JSON(http.StatusOK, gin.H{
-			"services": services,
+			"services": responseServices,
 		})
 	})
 
-	r.Run()
+	r.Run(":8080")
 }
 
-func updateServiceHealth(service *Service) {
+func updateServiceHealth(service *Service, wg *sync.WaitGroup) {
+	defer wg.Done()
+
+	if time.Since(service.LastUpdated) < 5*time.Second {
+		return
+	}
+
 	client := http.Client{
 		Timeout: 5 * time.Second,
 	}
 
 	url := service.URL + "/health"
-	log.Printf("getting service health for service %s at %s", service.Name, url)
 	resp, err := client.Get(url)
-	log.Printf("service health for %s is %s", service.Name, service.Status)
-	log.Printf("%v \n %v", resp, err)
 	if err != nil {
 		service.Status = "down"
 		return
@@ -62,6 +77,7 @@ func updateServiceHealth(service *Service) {
 	defer resp.Body.Close()
 
 	service.Status = "up"
+	service.LastUpdated = time.Now()
 }
 
 func readSystemConfig() []Service {

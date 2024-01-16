@@ -1,0 +1,20 @@
+{
+  "services": [
+    {
+      "name": "1",
+      "url": "http://localhost:8081"
+    },
+    {
+      "name": "2",
+      "url": "http://localhost:8082"
+    },
+    {
+      "name": "3",
+      "url": "http://localhost:8083"
+    },
+    {
+      "name": "4",
+      "url": "http://localhost:8084"
+    }
+  ]
+}
